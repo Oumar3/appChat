@@ -48,6 +48,64 @@ button:hover {
   background-color: #0056b3;
 }
 
+/* Styles pour les messages de chat */
+#messages {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  width: 100%;
+}
+
+.message {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  max-width: 80%;
+  word-wrap: break-word;
+}
+
+.message.sent {
+  background-color: #007bff;
+  color: white;
+  margin-left: auto;
+  margin-right: 0;
+  text-align: right;
+}
+
+.message.received {
+  background-color: #e9ecef;
+  color: #333;
+  margin-left: 0;
+  margin-right: auto;
+  text-align: left;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.message-content {
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.sender {
+  font-weight: bold;
+}
+
+.timestamp {
+  font-size: 11px;
+}
+
 #userList {
   display: flex;
   flex-direction: column;

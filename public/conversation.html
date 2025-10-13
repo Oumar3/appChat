@@ -2,17 +2,37 @@
 <html>
 <head>
   <title>Chat</title>
-    <link rel="stylesheet" href="style.css">
-
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h2 id="chatWith"></h2>
+  <div id="body">
+    <div class="container" style="max-width: 600px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <button id="backBtn" style="background-color: #6c757d;">← Retour</button>
+        <h2 id="chatWith">Chargement...</h2>
+        <button id="logoutBtn" style="background-color: #dc3545;">Déconnexion</button>
+      </div>
 
-  <div id="messages"></div>
-  <input id="msg" type="text" />
-  <button id="send">Send</button>
+      <div id="messages"></div>
+      <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <input id="msg" type="text" placeholder="Tapez votre message..." style="flex: 1;" />
+        <button id="send" style="width: auto; padding: 10px 20px;">Envoyer</button>
+      </div>
+    </div>
+  </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="chat.js"></script>
+  <script>
+    // Gestion du bouton de retour
+    document.getElementById('backBtn').onclick = () => {
+      window.location.href = 'userselection.html';
+    };
+
+    // Gestion du bouton de déconnexion
+    document.getElementById('logoutBtn').onclick = () => {
+      logout();
+    };
+  </script>
 </body>
 </html>

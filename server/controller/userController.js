@@ -54,3 +54,14 @@ exports.logout = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+
+// Get all users (except current user)
+exports.getAllUsers = async (req, res) => {
+    try {
+        const currentUserId = req.user.id; // from auth middleware
+        const users = await User.find({ _id: { $ne: currentUserId } }).select('username _id');
+        res.status(200).json({ users });
+    } catch (err) {
+        res.status(500).json({ message: 'Server error' });
+    }
+};
