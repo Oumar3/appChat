@@ -3,10 +3,16 @@ const app = express();
 const http = require('http');
 const server = http.createServer(app);
 const { Server } = require('socket.io');
-const socketServer = new Server(server);
+const socketServer = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 const db = require('./config/db');
 const cors = require("cors");
 const mongoose = require('mongoose');
+
 // Import des routes et modèles
 const messageRouter = require('./routes/messageRouter');
 const userRouter = require('./routes/userRouter');
@@ -21,60 +27,49 @@ app.use(express.static("../public"));
 app.use('/api/messages', messageRouter);
 app.use('/api/users', userRouter);
 
-
 // Socket.IO
 socketServer.on('connection', (socket) => {
     console.log('Un utilisateur connecté :', socket.id);
 
-    // L'utilisateur rejoint avec son ID
+    // Lorsqu'un utilisateur rejoint
     socket.on('user-join', (userData) => {
+        if (!userData?.userId) return;
         socket.userId = userData.userId;
-        console.log("socket", socket.id, socket.userId);
-        console.log("data socket",socket);
+        socket.join(socket.userId);
         console.log(`Utilisateur ${userData.userId} rejoint avec le socket ${socket.id}`);
     });
 
     // Gestion des messages
     socket.on('chat-message', async (messageData) => {
-    
-        // Vérifier que toutes les données requises sont présentes
         if (!messageData.senderId || !messageData.receiverId || !messageData.content) {
-            console.error('Données manquantes dans le message:', messageData);
             socket.emit('message-error', { error: 'Données de message incomplètes' });
             return;
         }
 
         try {
-            
-            // Mapper les données reçues aux champs du modèle
+            // Création du message
             const newMessage = new Message({
-                senderId: messageData.senderId,    // messageData.sender -> senderId dans le modèle
-                receiverId: messageData.receiverId, // messageData.receiver -> receiverId dans le modèle
+                senderId: messageData.senderId,
+                receiverId: messageData.receiverId,
                 content: messageData.content
             });
 
-            console.log('Nouveau message à créer:', newMessage);
-
             const savedMessage = await newMessage.save();
+            const populatedMessage = await savedMessage.populate('senderId');
 
-            console.log(savedMessage.senderId);
-            // Peupler senderId et receiverId avec les informations utilisateur
-           
+            console.log(`Message sauvegardé de ${messageData.senderId} à ${messageData.receiverId}`);
 
-            
-            // Envoyer le message au destinataire
-            socket.to(messageData.receiverId).emit("message", savedMessage);
-            socket.to(messageData.senderId).emit("message", savedMessage);
-            
-            
+            // Envoi du message aux deux utilisateurs connectés
+            socketServer.to(messageData.receiverId).emit("message", populatedMessage);
+            socketServer.to(messageData.senderId).emit("message", populatedMessage);
 
         } catch (error) {
-            console.error('Erreur lors de l\'enregistrement du message :', error);
+            console.error("Erreur lors de l'enregistrement du message :", error);
             socket.emit('message-error', { error: 'Échec de l\'envoi du message' });
         }
     });
 
-    // Gestion de la déconnexion
+    // Déconnexion
     socket.on('disconnect', () => {
         if (socket.userId) {
             console.log(`Utilisateur ${socket.userId} déconnecté`);
