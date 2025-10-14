@@ -2,7 +2,6 @@ const { verifyToken } = require('../utils/token');
 
 const authMiddleware = (req, res, next) => {
     try {
-        // Vérifier la présence du header Authorization
         const authHeader = req.headers['authorization'];
         if (!authHeader) {
             return res.status(401).json({ 
@@ -28,7 +27,7 @@ const authMiddleware = (req, res, next) => {
                 code: 'INVALID_TOKEN'
             });
         }
-
+        
         // Ajouter les infos utilisateur à la requête
         req.user = {
             id: decoded.id,

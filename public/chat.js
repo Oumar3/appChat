@@ -4,30 +4,28 @@ const socket = io("http://localhost:3000");
 let senderUserId = null;
 let senderUsername = null;
 let receiverId = null;
+let currentGroupId = null;
 
 // =============== INITIALISATION ===============
 document.addEventListener('DOMContentLoaded', () => {
-  // Récupérer les infos utilisateur depuis localStorage
+  // Récupérer les infos utilisateur
   senderUserId = localStorage.getItem('userId');
   senderUsername = localStorage.getItem('username');
-  
-  // Si on est sur la page de conversation, récupérer l'ID du destinataire
+
+  //https://monapp.com/chat.html?roomId=12345&userId=6789 donne une partie de l'URL après le ?
+
   const urlParams = new URLSearchParams(window.location.search);
   receiverId = urlParams.get('userId');
+  currentGroupId = urlParams.get('currentGroupId') || urlParams.get('groupId');
   
-  // Si utilisateur connecté, rejoindre sa room
+  // Rejoindre socket si connecté
   if (senderUserId) {
     socket.emit('user-join', { userId: senderUserId });
-    console.log(`Utilisateur ${senderUserId} rejoint le socket`);
   }
   
-  
-  // Charger les messages existants si on est sur la page conversation
+  // Charger messages pour conversations privées uniquement
   if (receiverId && senderUserId) {
-    console.log('Chargement des messages et titre...');
     loadExistingMessages();
-  } else {
-    console.warn('Manque receiverId ou senderUserId pour charger les messages');
   }
 });
 
@@ -38,10 +36,22 @@ socket.on('connect', () => {
   console.log('Connecté au serveur Socket.IO:', socket.id);
 });
 
-// Réception d'un nouveau message
-socket.on('message', (messageData) => {
-  console.log('Message reçu via socket:', messageData);
+// Réception d'un message privé (retour à l'expéditeur)
+socket.on('private-message', (messageData) => {
+  console.log('Message privé reçu via socket:', messageData);
   displayMessage(messageData);
+});
+
+// // Réception d'un message (destinataire)
+// socket.on('message', (messageData) => {
+//   console.log('Message reçu via socket:', messageData);
+//   displayMessage(messageData);
+// });
+
+// Réception d'un message de groupe
+socket.on('group-message', (messageData) => {
+  console.log('Message de groupe reçu via socket:', messageData);
+  displayGroupMessage(messageData);
 });
 
 // Gestion des erreurs
@@ -50,202 +60,183 @@ socket.on('message-error', (error) => {
   alert('Erreur: ' + error.error);
 });
 
+// Événements de groupe
+socket.on('user-joined', (data) => {
+  console.log(`Utilisateur rejoint le groupe:`, data);
+});
 
-// =============== BOUTONS LOGIN/REGISTER (userloggin.html) ===============
-let login = document.getElementById("login");
-if (login) {
-  login.onclick = async () => {
-    const username = document.getElementById("username").value;
-    const password = document.getElementById("password").value;
-    
-    if (!username || !password) {
-      alert('Veuillez remplir tous les champs');
-      return;
-    }
-    
-    try {
-      const response = await fetch('/api/users/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        // Stocker les informations utilisateur
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('userId', data.user._id);
-        localStorage.setItem('username', data.user.username);
-        
-        // Rediriger vers la sélection d'utilisateurs
-        window.location.href = 'userselection.html';
-      } else {
-        alert(data.message || 'Erreur de connexion');
+socket.on('user-left', (data) => {
+  console.log(`Utilisateur quitté le groupe:`, data);
+});
+
+// =============== FONCTIONS GROUPES ===============
+// Fonction globale pour quitter un groupe
+async function leaveGroup(groupId, groupName) {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`/api/groups/${groupId}/leave`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
-    } catch (error) {
-      console.error('Erreur login:', error);
-      alert('Erreur de connexion au serveur');
-    }
-  };
+    });
+
+    const data = await response.json();
+    return { success: response.ok, message: data.message };
+  } catch (error) {
+    console.error('Erreur:', error);
+    return { success: false, message: 'Erreur de connexion au serveur' };
+  }
 }
 
-let register = document.getElementById("register");
-if (register) {
-  register.onclick = async () => {
-    const username = document.getElementById("username").value;
-    const password = document.getElementById("password").value;
-    
-    if (!username || !password) {
-      alert('Veuillez remplir tous les champs');
-      return;
-    }
-    
-    try {
-      const response = await fetch('/api/users/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        alert('Inscription réussie !');      
-        window.location.href = 'userselection.html';
-      } else {
-        alert(data.message || 'Erreur d\'inscription');
-      }
-    } catch (error) {
-      console.error('Erreur register:', error);
-      alert('Erreur de connexion au serveur');
-    }
-  };
-}
 
-// =============== AFFICHAGE MESSAGES (conversation.html) ===============
-const messages = document.getElementById("messages");
+// =============== LOGIN/REGISTER ===============
+document.getElementById("login")?.addEventListener('click', async () => {
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
+  
+  if (!username || !password) return alert('Remplissez tous les champs');
+  
+  try {
+    const response = await fetch('/api/users/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('userId', data.user._id);
+      localStorage.setItem('username', data.user.username);
+      window.location.href = 'userselection.html';
+    } else {
+      alert(data.message);
+    }
+  } catch (error) {
+    alert('Erreur de connexion');
+  }
+});
 
+document.getElementById("register")?.addEventListener('click', async () => {
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
+  
+  if (!username || !password) return alert('Remplissez tous les champs');
+  
+  try {
+    const response = await fetch('/api/users/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      alert('Inscription réussie !');
+      window.location.href = 'userselection.html';
+    } else {
+      alert(data.message);
+    }
+  } catch (error) {
+    alert('Erreur de connexion');
+  }
+});
+
+// =============== AFFICHAGE MESSAGES ===============
 function displayMessage(messageData) {
-  console.log('Affichage message:', messageData);
+  const container = document.getElementById("messages");
+  if (!container) return;
   
-  // Récupérer le conteneur des messages
-  const messagesContainer = document.getElementById("messages");
-  if (!messagesContainer) {
-    console.error('Conteneur messages non trouvé');
-    return;
-  }
-  
-  // Cacher le message "Aucun message" s'il existe
-  const noMessagesDiv = document.getElementById('noMessages');
-  if (noMessagesDiv) {
-    noMessagesDiv.style.display = 'none';
-  }
+  document.getElementById('noMessages')?.style.setProperty('display', 'none');
   
   const messageDiv = document.createElement('div');
-  messageDiv.className = 'message';  
-  // Déterminer si c'est notre message ou celui du correspondant
-  let isMyMessage = false;
-  let senderName = 'Inconnu';
+  const isOwn = messageData.senderId?._id === senderUserId;
+  const senderName = messageData.senderId?.username || 'Utilisateur';
+  const time = new Date(messageData.createdAt || Date.now()).toLocaleTimeString();
   
-  if (messageData.senderId) {
-    isMyMessage = messageData.senderId._id === senderUserId;
-    senderName = messageData.senderId.username || 'Utilisateur';
-  }
-  
-  
-  const content = messageData.content || '';
-  const time = new Date(messageData.createdAt || messageData.timestamp || Date.now()).toLocaleTimeString();
-  
+  messageDiv.className = isOwn ? 'message sent' : 'message received';
   messageDiv.innerHTML = `
-    <div class="message-content">
-      ${content}
-    </div>
+    <div class="message-content">${messageData.content}</div>
     <div class="message-time">${senderName} - ${time}</div>
   `;
   
-  messagesContainer.appendChild(messageDiv);
-  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  container.appendChild(messageDiv);
+  container.scrollTop = container.scrollHeight;
+}
+
+function displayGroupMessage(messageData) {
+  const container = document.getElementById('messages');
+  if (!container) return displayMessage(messageData);
   
-  console.log('Message affiché avec succès');
+  document.getElementById('noMessages')?.style.setProperty('display', 'none');
+  
+  const messageDiv = document.createElement('div');
+  const isOwn = messageData.senderId?._id === senderUserId;
+  const senderName = messageData.senderId?.username || 'Utilisateur';
+  const time = new Date(messageData.createdAt || Date.now()).toLocaleTimeString();
+  
+  messageDiv.className = `group-message ${isOwn ? 'own' : 'other'}`;
+  messageDiv.innerHTML = `
+    ${!isOwn ? `<div class="message-sender">${senderName}</div>` : ''}
+    <div class="message-content">${messageData.content}</div>
+    <div class="message-time">${time}</div>
+  `;
+  
+  container.appendChild(messageDiv);
+  container.scrollTop = container.scrollHeight;
 }
 
-// =============== ENVOI DE MESSAGE (conversation.html) ===============
-let send = document.getElementById("send");
-if (send) {
-  send.onclick = () => {
-    const msgInput = document.getElementById("msg");
-    const text = msgInput.value.trim();
-    
-    if (!text) {
-      alert('Veuillez saisir un message');
-      return;
-    }    
-    // Créer l'objet message selon le format du serveur
-    const messageData = {
-      senderId: senderUserId,
-      receiverId: receiverId,
-      content: text
-    };
-    
-    console.log('Envoi message:', messageData);
-    
-    // Envoyer via socket
-    socket.emit('chat-message', messageData);
-    
-    // Vider le champ
-    msgInput.value = '';
-  };
-}
-
-// Permettre l'envoi avec Entrée
-const msgInput = document.getElementById("msg");
-if (msgInput) {
-  msgInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      send.onclick();
-    }
+// =============== ENVOI DE MESSAGE ===============
+// Event listener pour les messages privés uniquement
+document.getElementById("send")?.addEventListener('click', () => {
+  if (window.location.pathname.includes('group-conversation.html')) {
+    return; // Laisser group-conversation.html gérer
+  }
+  
+  const msgInput = document.getElementById("msg");
+  const text = msgInput.value.trim();
+  
+  if (!text) return;
+  
+  socket.emit('chat-message', {
+    senderId: senderUserId,
+    receiverId: receiverId,
+    content: text
   });
-}
+  
+  msgInput.value = '';
+});
+
+document.getElementById("msg")?.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter' && !window.location.pathname.includes('group-conversation.html')) {
+    document.getElementById("send")?.click();
+  }
+});
 
 // =============== FONCTIONS UTILITAIRES ===============
 
-// Charger les messages existants
 async function loadExistingMessages() {
   try {
-    const token = localStorage.getItem('token');
-    const url = `/api/messages/${senderUserId}/${receiverId}`;
-    console.log('URL de récupération des messages:', url);
-    
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-    
-    // Ajouter l'authentification si disponible
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    const response = await fetch(url, { headers });
+    const response = await fetch(`/api/messages/${senderUserId}/${receiverId}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    });
     
     if (response.ok) {
       const data = await response.json();
-      console.log('Messages récupérés:', data);
-      
-      if (data.messages && data.messages.length > 0) {
-        data.messages.forEach(message => displayMessage(message));
-      } else {
-        console.log('Aucun message trouvé');
-      }
-    } else {
-      console.error('Erreur HTTP:', response.status, response.statusText);
-      const errorText = await response.text();
-      console.error('Détails erreur:', errorText);
+      data.messages?.forEach(message => displayMessage(message));
     }
   } catch (error) {
     console.error('Erreur chargement messages:', error);
   }
 }
+
 
 // Fonction de déconnexion
 function logout() {
@@ -256,57 +247,38 @@ function logout() {
   window.location.href = 'userloggin.html';
 }
 
-// =============== GESTION BOUTONS NAVIGATION ===============
+// =============== NAVIGATION ===============
+document.querySelector('#logoutBtn, #logout')?.addEventListener('click', logout);
+document.getElementById('backBtn')?.addEventListener('click', () => {
+  window.location.href = 'userselection.html';
+});
 
-// Bouton de déconnexion (présent dans plusieurs pages)
-const logoutBtn = document.getElementById('logoutBtn') || document.getElementById('logout');
-if (logoutBtn) {
-  logoutBtn.onclick = () => {
-    logout();
-  };
+// =============== USERSELECTION ===============
+if (location.pathname.includes('userselection.html')) {
+    if (checkAuthentication()){
+      loadUsers();
+    }
+    document.getElementById('goToGroups')?.addEventListener('click', () => {
+      location.href = 'groups.html';
+    });
+    document.getElementById('goToPrivateChats')?.addEventListener('click', () => {
+      document.getElementById('usersList')?.scrollIntoView({ behavior: 'smooth' });
+    });
 }
 
-// Bouton retour (conversation.html)
-const backBtn = document.getElementById('backBtn');
-if (backBtn) {
-  backBtn.onclick = () => {
-    window.location.href = 'userselection.html';
-  };
-}
-
-// =============== LOGIQUE USERSELECTION.HTML ===============
-
-// Vérifier l'authentification et charger les utilisateurs
-if (window.location.pathname.includes('userselection.html')) {
-  document.addEventListener('DOMContentLoaded', () => {
-    checkAuthentication();
-    loadUsers();
-  });
-}
-
-// Vérifier si l'utilisateur est connecté
 function checkAuthentication() {
-  const token = localStorage.getItem('token');
-  const userId = localStorage.getItem('userId');
-  
-  if (!token || !userId) {
-    window.location.href = 'userloggin.html';
+  if (!localStorage.getItem('token') || !localStorage.getItem('userId')) {
+    location.href = 'userloggin.html';
     return false;
   }
   return true;
 }
 
-// Charger la liste des utilisateurs
 async function loadUsers() {
-  if (!checkAuthentication()) return;
-  
-  const token = localStorage.getItem('token');
-  
   try {
     const response = await fetch('/api/users', {
-      method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
         'Content-Type': 'application/json'
       }
     });
@@ -315,128 +287,57 @@ async function loadUsers() {
     
     if (response.ok) {
       displayUsers(data.users);
-    } else {
-      alert('Erreur lors du chargement des utilisateurs');
-      if (response.status === 401) {
-        localStorage.clear();
-        window.location.href = 'userloggin.html';
-      }
+    } else if (response.status === 401) {
+      localStorage.clear();
+      location.href = 'userloggin.html';
     }
   } catch (error) {
     console.error('Erreur:', error);
-    alert('Erreur de connexion au serveur');
   }
 }
 
-// Afficher la liste des utilisateurs
 function displayUsers(users) {
   const usersList = document.getElementById('usersList');
   if (!usersList) return;
   
-  usersList.innerHTML = '';
+  const currentUserId = localStorage.getItem('userId');
+  const otherUsers = users.filter(user => user._id !== currentUserId);
   
-  // Filtrer l'utilisateur actuel
-  const senderUserId = localStorage.getItem('userId');
-  const otherUsers = users.filter(user => user._id !== senderUserId);
-  
-  if (otherUsers.length === 0) {
-    usersList.innerHTML = '<p>Aucun autre utilisateur disponible</p>';
-    return;
-  }
+  usersList.innerHTML = otherUsers.length === 0 ? 
+    '<p>Aucun autre utilisateur disponible</p>' : '';
   
   otherUsers.forEach(user => {
     const userDiv = document.createElement('div');
     userDiv.className = 'user-item';
-    userDiv.style.cssText = `
-      padding: 10px;
-      margin: 5px 0;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    `;
-    
-    userDiv.innerHTML = `
-      <span>${user.username}</span>
-    `;
-    
-    userDiv.onclick = () => {
-      // Rediriger vers la page de conversation avec l'ID en paramètre URL
-      window.location.href = `conversation.html?userId=${user._id}`;
-    };
-    
+    userDiv.innerHTML = `<span>${user.username}</span>`;
+    userDiv.onclick = () => location.href = `conversation.html?userId=${user._id}`;
     usersList.appendChild(userDiv);
   });
 }
 
-// =============== LOGIQUE MAIN.HTML ===============
-
-// Charger les utilisateurs pour main.html
-if (window.location.pathname.includes('main.html')) {
-  document.addEventListener('DOMContentLoaded', () => {
-    loadUsersForMain();
-  });
-}
-
-// Charger la liste des utilisateurs pour main.html
-async function loadUsersForMain() {
-  try {
-    const response = await fetch('/api/users', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
+// =============== MAIN.HTML ===============
+if (location.pathname.includes('main.html')) {
+  document.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const response = await fetch('/api/users');
+      const data = await response.json();
+      
+      const userList = document.getElementById('userList');
+      if (userList && data.users) {
+        userList.innerHTML = data.users.length === 0 ? 
+          '<p>Aucun utilisateur disponible</p>' : '';
+          
+        data.users.forEach(user => {
+          const userDiv = document.createElement('div');
+          userDiv.className = 'user-item';
+          userDiv.innerHTML = `<span>${user.username}</span>`;
+          userDiv.onclick = () => location.href = 'userloggin.html';
+          userList.appendChild(userDiv);
+        });
       }
-    });
-
-    const data = await response.json();
-    
-    if (response.ok) {
-      displayUsersForMain(data.users);
-    } else {
-      console.error('Erreur lors du chargement des utilisateurs');
+    } catch (error) {
+      console.error('Erreur:', error);
     }
-  } catch (error) {
-    console.error('Erreur:', error);
-  }
-}
-
-// Afficher la liste des utilisateurs pour main.html
-function displayUsersForMain(users) {
-  const userList = document.getElementById('userList');
-  if (!userList) return;
-  
-  userList.innerHTML = '';
-  
-  if (users.length === 0) {
-    userList.innerHTML = '<p>Aucun utilisateur disponible</p>';
-    return;
-  }
-  
-  users.forEach(user => {
-    const userDiv = document.createElement('div');
-    userDiv.className = 'user-item';
-    userDiv.style.cssText = `
-      padding: 10px;
-      margin: 5px 0;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    `;
-    
-    userDiv.innerHTML = `
-      <span>${user.username}</span>
-    `;
-    
-    userDiv.onmouseover = () => userDiv.style.backgroundColor = '#f0f0f0';
-    userDiv.onmouseout = () => userDiv.style.backgroundColor = 'white';
-    
-    userDiv.onclick = () => {
-      // Rediriger vers la page de login pour s'authentifier d'abord
-      window.location.href = 'userloggin.html';
-    };
-    
-    userList.appendChild(userDiv);
   });
 }
 

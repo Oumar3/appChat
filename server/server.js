@@ -4,6 +4,7 @@ const http = require('http');
 const server = http.createServer(app);
 const { Server } = require('socket.io');
 const socketServer = new Server(server);
+const io = socketServer; // Alias pour compatibilité
 const db = require('./config/db');
 const cors = require("cors");
 const { ObjectId } = require('mongodb');
@@ -12,99 +13,110 @@ const mongoose = require('mongoose');
 // Import des routes et modèles
 const messageRouter = require('./routes/messageRouter');
 const userRouter = require('./routes/userRouter');
+const groupRouter = require('./routes/groupRouter');
 const Message = require('./models/messageModel');
+const { group } = require('console');
 
 // Middlewares
 app.use(cors());
 app.use(express.json());
 app.use(express.static("../public"));
 
+// Route pour le favicon
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
+});
+
+
+
 // Routes
 app.use('/api/messages', messageRouter);
 app.use('/api/users', userRouter);
-
-
-// server side et client side
-/**
- * Dans le server side on fait la connexon du server socket avec le Server.on("Event",callback function(socket){}))
- * socket.connected: verifie si le server est connecté
- * socket.id: id du socket
- * socket.on("Event",callback function(data){}): ecoute un evenement
- * Dans le client side on fait la connexion du client socket avec le io("url",option) et socket.on("Event",callback function(data){}): ecoute un evenement
- *
- * le best pratics socket.on("connect", () => {
-  // ...
-});
-
-socket.on("data", () => {  });
-
-Tree of events:
-- broadcast a tous les utilisateurs connectes sauf l'envoyeur
-- envoi d'un message a un utilisateur specifique
-- envoi un message a tous les utilisateurs connectes dans une salle
-- envoi un message a tous les utilisateurs connectes dans une salle sauf l'envoyeur
-- envoi un message a tous les utilisateurs connectes dans une salle sauf l'envoyeur et un utilisateur specifique
- * 
- * Dans le client side on fait la connexion du client socket avec le io("url",option) et socket.on("Event",callback function(data){}): ecoute un evenement
- */
+app.use('/api/groups', groupRouter);
 
 
 // Socket.IO
+const connectedUsers = new Map(); // Map pour stocker les utilisateurs connectés
+
 socketServer.on('connection', (socket) => {
-    console.log('Un utilisateur connecté :', socket.id);
 
-    // Lorsqu'un utilisateur rejoint
-    socket.on('user-join', (userData) => {
-        if (!userData?.userId) return;
-        socket.userId = userData.userId;
-        socket.join(socket.userId);
-        console.log(`Utilisateur ${userData.userId} rejoint avec le socket ${socket.id}`);
+     // Lorsqu'un utilisateur rejoint
+    socket.on('user-join', ({ userId }) => {
+        connectedUsers.set(userId, socket.id);
+        socket.userId = userId;
     });
 
-    // Gestion des messages
+    // Joindre une room (groupe)
+    socket.on('join-room', async ({ groupId, userId }) => {
+        socket.join(groupId);
+        io.to(groupId).emit('user-joined', { userId, groupId });
+    });
+    // Quitter une room (groupe)
+    socket.on('leave-room', ({ groupId, userId }) => {
+        socket.leave(groupId);
+        io.to(groupId).emit('user-left', { userId, groupId });
+    });
+
+    // ===  GESTION DES MESSAGES ===
     socket.on('chat-message', async (messageData) => {
-        if (!messageData.senderId || !messageData.receiverId || !messageData.content) {
-            socket.emit('message-error', { error: 'Données de message incomplètes' });
-            return;
+      const { senderId, receiverId, groupId, content } = messageData;
+
+      if (!senderId || !content) {
+        console.error(' Données incomplètes:', { senderId, content });
+        socket.emit('message-error', { error: 'Données incomplètes' });
+        return;
+      }
+
+      try {
+        // Créer le message selon le type (privé ou groupe)
+        let messageDoc = {
+          senderId,
+          content
+        };
+
+        if (groupId) {
+          // Message de groupe (priorité)
+          messageDoc.groupId = groupId;
+        } else if (receiverId) {
+          // Message privé
+          messageDoc.receiverId = receiverId;
+        } else {
+          console.error('Aucun destinataire valide:', { receiverId, groupId });
+          socket.emit('message-error', { error: 'receiverId ou groupId requis' });
+          return;
         }
 
-        try {
-            // Création du message
-            const newMessage = new Message({
-                //faire un object model id
-                senderId: messageData.senderId,
-                receiverId: messageData.receiverId,
-                content: messageData.content
-            });
-            console.log(typeof newMessage.senderId);
-            console.log("new message", newMessage);
-            const savedMessage = await newMessage.save();
-            console.log("saved message", savedMessage);
-            const populatedMessage = await savedMessage.populate('senderId');
+        const newMessage = new Message(messageDoc);
+        const savedMessage = await newMessage.save();
+        const populatedMessage = await savedMessage.populate('senderId');
 
-            console.log(`Message sauvegardé de ${messageData.senderId} à ${messageData.receiverId}`);
-            console.log('Message populé:', populatedMessage);
+        // === CAS 1 : Message de groupe ===
+        if (groupId) {
+          io.to(groupId).emit('group-message', populatedMessage);
+        } 
+        // === CAS 2 : Message privé ===
+        else if (receiverId) {
+          const receiverSocketId = connectedUsers.get(receiverId);
+          if (receiverSocketId) {
+            io.to(receiverSocketId).emit('message', populatedMessage);
+          }
 
-            // Envoi du message au destinataire (s'il est connecté)
-            socketServer.to(messageData.receiverId).emit("message", populatedMessage);
-            
-            // Envoi du message à l'expéditeur (confirmation)
-            socket.emit("message", populatedMessage);
-            
-            console.log('Messages envoyés via Socket.IO');
-
-        } catch (error) {
-            console.error("Erreur lors de l'enregistrement du message :", error);
-            socket.emit('message-error', { error: 'Échec de l\'envoi du message' });
+          // Retour à l'expéditeur
+          socket.emit('private-message', populatedMessage);
         }
-    });
+
+      } catch (error) {
+        console.error("Erreur lors de l'enregistrement du message :", error);
+        socket.emit('message-error', { error: 'Erreur serveur' });
+      }
+ });
+
 
     // Déconnexion
     socket.on('disconnect', () => {
         if (socket.userId) {
-            console.log(`Utilisateur ${socket.userId} déconnecté`);
+            connectedUsers.delete(socket.userId);
         }
-        console.log('Socket déconnecté :', socket.id);
     });
 });
 

@@ -22,7 +22,6 @@ const sendMessage = async (req, res) => {
 
 const getMessages = async (req, res) => {
     const { userId1, userId2 } = req.params;
-    console.log(`Récupération messages entre ${userId1} et ${userId2}`);
     
     try {
         const messages = await Message.find({

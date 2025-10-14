@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestion des Groupes</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .groups-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding: 15px;
+      background: #2c3e50;
+      color: white;
+      border-radius: 10px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      margin: 0 5px;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+      background: #007bff;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #0056b3;
+    }
+
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: #1e7e34;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #545b62;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #c82333;
+    }
+
+    .groups-section {
+      margin-bottom: 30px;
+    }
+
+    .section-title {
+      font-size: 1.5em;
+      margin-bottom: 15px;
+      color: #2c3e50;
+      border-bottom: 2px solid #007bff;
+      padding-bottom: 5px;
+    }
+
+    .group-item {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 15px;
+      margin: 10px 0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    }
+
+    .group-item:hover {
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      transform: translateY(-2px);
+    }
+
+    .group-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .group-name {
+      font-weight: bold;
+      font-size: 1.1em;
+      color: #2c3e50;
+    }
+
+    .group-members {
+      font-size: 0.9em;
+      color: #666;
+      margin-top: 5px;
+    }
+
+    .create-group-form {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    .users-selection {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .user-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 10px;
+      background: #f8f9fa;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+    }
+
+    .user-checkbox input[type="checkbox"] {
+      margin: 0;
+    }
+
+    .no-groups {
+      text-align: center;
+      color: #666;
+      font-style: italic;
+      padding: 40px;
+      background: #f8f9fa;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="groups-container">
+    <!-- En-tête -->
+    <div class="header">
+      <div>
+        <button id="backToSelection" class="btn btn-secondary">← Retour</button>
+      </div>
+      <h1>💬 Groupes de Discussion</h1>
+      <div>
+        <button id="logoutBtn" class="btn btn-danger">Déconnexion</button>
+      </div>
+    </div>
+
+    <!-- Bouton pour créer un groupe -->
+    <div style="text-align: center; margin-bottom: 20px;">
+      <button id="showCreateForm" class="btn btn-success">➕ Créer un Nouveau Groupe</button>
+    </div>
+
+    <!-- Formulaire de création de groupe -->
+    <div id="createGroupForm" class="create-group-form">
+      <h3>Créer un Nouveau Groupe</h3>
+      <div class="form-group">
+        <label for="groupName">Nom du Groupe</label>
+        <input type="text" id="groupName" placeholder="Entrez le nom du groupe" maxlength="50">
+      </div>
+      <div class="form-group">
+        <label>Sélectionner les Membres</label>
+        <div id="usersSelection" class="users-selection">
+          <!-- Les utilisateurs seront chargés ici -->
+        </div>
+      </div>
+      <div style="text-align: center; margin-top: 20px;">
+        <button id="createGroup" class="btn btn-primary">Créer le Groupe</button>
+        <button id="cancelCreate" class="btn btn-secondary">Annuler</button>
+      </div>
+    </div>
+
+    <!-- Section des groupes -->
+    <div class="groups-section">
+      <h2 class="section-title">Mes Groupes</h2>
+      <div id="groupsList">
+        <div class="no-groups">
+          Aucun groupe disponible. Créez-en un !
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="chat.js"></script>
+  
+  <script>
+    // Variables globales pour les groupes
+    let allUsers = [];
+    let userGroups = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Vérifier l'authentification
+      if (!checkAuthentication()) {
+        return;
+      }
+
+      // Charger les données
+      loadUsersForGroups();
+      loadUserGroups();
+
+      // Event listeners
+      document.getElementById('showCreateForm').onclick = showCreateGroupForm;
+      document.getElementById('cancelCreate').onclick = hideCreateGroupForm;
+      document.getElementById('createGroup').onclick = createNewGroup;
+      document.getElementById('backToSelection').onclick = () => {
+        window.location.href = 'userselection.html';
+      };
+    });
+
+    // Afficher le formulaire de création
+    function showCreateGroupForm() {
+      document.getElementById('createGroupForm').style.display = 'block';
+      document.getElementById('showCreateForm').style.display = 'none';
+    }
+
+    // Cacher le formulaire de création
+    function hideCreateGroupForm() {
+      document.getElementById('createGroupForm').style.display = 'none';
+      document.getElementById('showCreateForm').style.display = 'block';
+      document.getElementById('groupName').value = '';
+      // Décocher tous les utilisateurs
+      document.querySelectorAll('#usersSelection input[type="checkbox"]').forEach(cb => cb.checked = false);
+    }
+
+    // Charger les utilisateurs pour la sélection
+    async function loadUsersForGroups() {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/users', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          const currentUserId = localStorage.getItem('userId');
+          allUsers = data.users.filter(user => user._id !== currentUserId);
+          displayUsersForSelection();
+        }
+      } catch (error) {
+        console.error('Erreur chargement utilisateurs:', error);
+      }
+    }
+
+    // Afficher les utilisateurs pour sélection
+    function displayUsersForSelection() {
+      const container = document.getElementById('usersSelection');
+      container.innerHTML = '';
+
+      allUsers.forEach(user => {
+        const userDiv = document.createElement('div');
+        userDiv.className = 'user-checkbox';
+        userDiv.innerHTML = `
+          <input type="checkbox" id="user_${user._id}" value="${user._id}">
+          <label for="user_${user._id}">${user.username}</label>
+        `;
+        container.appendChild(userDiv);
+      });
+    }
+
+    // Créer un nouveau groupe
+    async function createNewGroup() {
+      const groupName = document.getElementById('groupName').value.trim();
+      const selectedUsers = Array.from(document.querySelectorAll('#usersSelection input[type="checkbox"]:checked'))
+        .map(cb => cb.value);
+
+      if (!groupName) {
+        alert('Veuillez entrer un nom pour le groupe');
+        return;
+      }
+
+      if (selectedUsers.length === 0) {
+        alert('Veuillez sélectionner au moins un membre');
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('token');
+        const currentUserId = localStorage.getItem('userId');
+        
+        // Ajouter l'utilisateur actuel aux membres
+        selectedUsers.push(currentUserId);
+
+        const response = await fetch('/api/groups', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: groupName,
+            members: selectedUsers
+          })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          alert('Groupe créé avec succès !');
+          hideCreateGroupForm();
+          loadUserGroups(); // Recharger les groupes
+        } else {
+          alert(data.message || 'Erreur lors de la création du groupe');
+        }
+      } catch (error) {
+        console.error('Erreur création groupe:', error);
+        alert('Erreur de connexion au serveur');
+      }
+    }
+
+    // Charger les groupes de l'utilisateur
+    async function loadUserGroups() {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/groups', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          userGroups = data.groups || [];
+          displayGroups();
+        }
+      } catch (error) {
+        console.error('Erreur chargement groupes:', error);
+      }
+    }
+
+    // Afficher les groupes
+    function displayGroups() {
+      const container = document.getElementById('groupsList');
+      
+      if (userGroups.length === 0) {
+        container.innerHTML = '<div class="no-groups">Aucun groupe disponible. Créez-en un !</div>';
+        return;
+      }
+
+      container.innerHTML = '';
+      userGroups.forEach(group => {
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'group-item';
+        
+        const membersNames = group.members.map(member => member.username).join(', ');
+        
+        groupDiv.innerHTML = `
+          <div class="group-header">
+            <div class="group-name">${group.name}</div>
+            <div style="display: flex; gap: 5px;">
+              <button class="btn btn-primary" onclick="joinGroupChat('${group._id}', '${group.name}')">
+                💬 Rejoindre
+              </button>
+              <button class="btn btn-danger" onclick="confirmLeaveGroupFromList('${group._id}', '${group.name}')">
+                🚪 Quitter
+              </button>
+            </div>
+          </div>
+          <div class="group-members">
+            👥 Membres: ${membersNames} (${group.members.length})
+          </div>
+        `;
+        
+        container.appendChild(groupDiv);
+      });
+    }
+
+    // Rejoindre un chat de groupe
+    function joinGroupChat(groupId, groupName) {
+      // Stocker les informations du groupe pour la page de conversation
+      localStorage.setItem('currentGroupId', groupId);
+      localStorage.setItem('currentGroupName', groupName);
+      
+      // Rediriger vers la page de conversation de groupe
+      window.location.href = `group-conversation.html?groupId=${groupId}`;
+    }
+
+    // Confirmer avant de quitter le groupe depuis la liste
+    async function confirmLeaveGroupFromList(groupId, groupName) {
+      const confirmation = confirm(
+        `Êtes-vous sûr de vouloir quitter le groupe "${groupName}" ?\n\n` +
+        'Vous ne recevrez plus les messages et devrez être réinvité pour rejoindre.'
+      );
+      
+      if (confirmation) {
+        const result = await leaveGroup(groupId, groupName);
+        if (result.success) {
+          alert(`Vous avez quitté le groupe "${groupName}" avec succès !`);
+          loadUserGroups(); // Recharger la liste des groupes
+        } else {
+          alert(result.message || 'Erreur lors de la sortie du groupe');
+        }
+      }
+    }
+  </script>
+</body>
+</html>

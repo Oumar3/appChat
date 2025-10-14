@@ -6,5 +6,5 @@ const groupSchema = new Schema({
   members: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   createdAt: { type: Date, default: Date.now }
 });
-
-module.exports = mongoose.model('Group', groupSchema);
+const Group = mongoose.model('Group', groupSchema);
+module.exports = Group;

@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Groupe</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Style spécifique pour la conversation de groupe */
+    .chat-container {
+      max-width: 900px;
+      margin: 0 auto;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #f5f5f5;
+    }
+
+    .chat-header {
+      background: #28a745;
+      color: white;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .chat-header h2 {
+      margin: 0;
+      font-size: 1.2em;
+    }
+
+    .header-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 8px 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+
+    .btn-back {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-back:hover {
+      background: #545b62;
+    }
+
+    .btn-info {
+      background: #17a2b8;
+      color: white;
+    }
+
+    .btn-info:hover {
+      background: #138496;
+    }
+
+    .btn-logout {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-logout:hover {
+      background: #c82333;
+    }
+
+    .btn-leave {
+      background: #fd7e14;
+      color: white;
+    }
+
+    .btn-leave:hover {
+      background: #e8630a;
+    }
+
+    .messages-container {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      background: white;
+      margin: 10px;
+      border-radius: 10px;
+      box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .group-message {
+      margin-bottom: 15px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .group-message.own {
+      text-align: right;
+    }
+
+    .group-message.other {
+      text-align: left;
+    }
+
+    .message-content {
+      display: inline-block;
+      max-width: 70%;
+      padding: 12px 16px;
+      border-radius: 18px;
+      word-wrap: break-word;
+      position: relative;
+    }
+
+    .group-message.own .message-content {
+      background: #007bff;
+      color: white;
+      border-bottom-right-radius: 5px;
+    }
+
+    .group-message.other .message-content {
+      background: #e9ecef;
+      color: #333;
+      border-bottom-left-radius: 5px;
+    }
+
+    .message-sender {
+      font-size: 0.8em;
+      font-weight: bold;
+      margin-bottom: 3px;
+      color: #007bff;
+    }
+
+    .group-message.own .message-sender {
+      color: #fff;
+      opacity: 0.8;
+    }
+
+    .message-time {
+      font-size: 0.75em;
+      color: #666;
+      margin-top: 5px;
+    }
+
+    .message-input-container {
+      padding: 15px 20px;
+      background: #ecf0f1;
+      border-top: 1px solid #bdc3c7;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .message-input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 1px solid #bdc3c7;
+      border-radius: 25px;
+      outline: none;
+      font-size: 16px;
+      background: white;
+    }
+
+    .message-input:focus {
+      border-color: #28a745;
+      box-shadow: 0 0 0 2px rgba(40,167,69,0.25);
+    }
+
+    .send-btn {
+      padding: 12px 20px;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+
+    .send-btn:hover {
+      background: #1e7e34;
+      transform: translateY(-1px);
+    }
+
+    .send-btn:active {
+      transform: translateY(0);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Style pour les messages vides */
+    .no-messages {
+      text-align: center;
+      color: #666;
+      font-style: italic;
+      margin-top: 50px;
+    }
+
+    /* Info groupe */
+    .group-info {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .group-info-content {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 400px;
+      width: 90%;
+    }
+
+    .group-info h3 {
+      margin-top: 0;
+      color: #28a745;
+    }
+
+    .members-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .members-list li {
+      padding: 5px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .chat-container {
+        height: 100vh;
+      }
+      
+      .chat-header {
+        padding: 10px 15px;
+      }
+      
+      .messages-container {
+        margin: 5px;
+        padding: 15px;
+      }
+      
+      .message-content {
+        max-width: 85%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <!-- En-tête du chat -->
+    <div class="chat-header">
+      <div class="header-buttons">
+        <button id="backBtn" class="btn btn-back">← Retour</button>
+      </div>
+      <h2 id="groupTitle">🏢 Groupe</h2>
+      <div class="header-buttons">
+        <button id="groupInfoBtn" class="btn btn-info">ℹ️ Info</button>
+        <button id="leaveGroupBtn" class="btn btn-leave">🚪 Quitter</button>
+        <button id="logoutBtn" class="btn btn-logout">Déconnexion</button>
+      </div>
+    </div>
+
+    <!-- Zone des messages -->
+    <div class="messages-container" id="messages">
+      <div class="no-messages" id="noMessages">
+        Aucun message dans ce groupe. Commencez la conversation ! 👋
+      </div>
+    </div>
+
+    <!-- Zone de saisie -->
+    <div class="message-input-container">
+      <input 
+        id="msg" 
+        type="text" 
+        class="message-input"
+        placeholder="Tapez votre message pour le groupe..." 
+        maxlength="500"
+        autocomplete="off"
+      />
+      <button id="send" class="send-btn">
+        📤 Envoyer
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal info groupe -->
+  <div id="groupInfo" class="group-info">
+    <div class="group-info-content">
+      <h3 id="groupInfoTitle">Informations du Groupe</h3>
+      <div>
+        <strong>Membres:</strong>
+        <ul id="membersList" class="members-list">
+          <!-- Les membres seront chargés ici -->
+        </ul>
+      </div>
+      <div style="text-align: center; margin-top: 20px;">
+        <button class="btn btn-back" onclick="hideGroupInfo()">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="chat.js"></script>
+  
+  <script>
+    // Variables globales pour le groupe
+    let groupCurrentGroupName = null;
+    let groupMembers = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Récupérer les informations du groupe depuis les paramètres URL ou localStorage
+      const urlParams = new URLSearchParams(window.location.search);
+      const groupIdFromUrl = urlParams.get('groupId');
+      const groupIdFromStorage = localStorage.getItem('currentGroupId');
+      
+      // Prioriser l'URL, puis localStorage
+      currentGroupId = groupIdFromUrl || groupIdFromStorage;
+      groupCurrentGroupName = localStorage.getItem('currentGroupName');
+      
+      // S'assurer que currentGroupId est bien défini globalement
+      window.currentGroupId = currentGroupId;      if (!senderUserId || !currentGroupId) {
+        console.error('Informations manquantes - redirection vers groups.html');
+        alert('Informations manquantes pour rejoindre le groupe');
+        window.location.href = 'groups.html';
+        return;
+      }
+
+
+
+      // Rejoindre le groupe via socket
+      if (socket.connected) {
+        joinGroup();
+      } else {
+        socket.on('connect', () => {
+          joinGroup();
+        });
+      }
+
+      // Mettre à jour le titre de la page immédiatement
+      if (groupCurrentGroupName) {
+        const groupTitleElement = document.getElementById('groupTitle');
+        if (groupTitleElement) {
+          groupTitleElement.textContent = `🏢 ${groupCurrentGroupName}`;
+        }
+        document.title = `Groupe: ${groupCurrentGroupName}`;
+      }
+
+      // Charger les informations du groupe et les messages
+      loadGroupInfo();
+      loadGroupMessages();
+
+      // Event listeners - Remplacer complètement les listeners de chat.js
+      const sendButton = document.getElementById('send');
+      const msgInput = document.getElementById('msg');
+      
+      // Supprimer tous les event listeners existants en clonant l'élément
+      const newSendButton = sendButton.cloneNode(true);
+      sendButton.parentNode.replaceChild(newSendButton, sendButton);
+      
+      const newMsgInput = msgInput.cloneNode(true);
+      msgInput.parentNode.replaceChild(newMsgInput, msgInput);
+      
+      // Ajouter nos propres event listeners
+      newSendButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        sendGroupMessage();
+      });
+      
+      newMsgInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          e.stopPropagation();
+          sendGroupMessage();
+        }
+      });
+
+      document.getElementById('backBtn').onclick = () => {
+        leaveGroup();
+        window.location.href = 'groups.html';
+      };
+
+      document.getElementById('groupInfoBtn').onclick = showGroupInfo;
+      document.getElementById('leaveGroupBtn').onclick = confirmLeaveGroup;
+    });
+
+    // Rejoindre le groupe
+    function joinGroup() {
+      socket.emit('join-room', { 
+        groupId: currentGroupId, 
+        userId: senderUserId 
+      });
+    }
+
+    // Quitter le groupe
+    function leaveGroup() {
+      socket.emit('leave-room', { 
+        groupId: currentGroupId, 
+        userId: senderUserId 
+      });
+    }
+
+    // Charger les informations du groupe
+    async function loadGroupInfo() {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/groups/${currentGroupId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          groupCurrentGroupName = data.group.name;
+          groupMembers = data.group.members;
+          
+          document.getElementById('groupTitle').textContent = `🏢 ${groupCurrentGroupName}`;
+          localStorage.setItem('currentGroupName', groupCurrentGroupName);
+        }
+      } catch (error) {
+        console.error('Erreur chargement info groupe:', error);
+      }
+    }
+
+    // Charger les messages du groupe
+    async function loadGroupMessages() {
+      if (!currentGroupId) {
+        console.error('ERREUR: currentGroupId est null ou undefined');
+        alert('Impossible de charger les messages: ID de groupe manquant');
+        return;
+      }
+      
+      try {
+        const token = localStorage.getItem('token');
+        const url = `/api/messages/group/${currentGroupId}`;
+        
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.messages && data.messages.length > 0) {
+            data.messages.forEach(message => displayGroupMessage(message));
+          }
+        } else {
+          const errorData = await response.json();
+          console.error('Erreur HTTP:', response.status, errorData);
+        }
+      } catch (error) {
+        console.error('Erreur chargement messages groupe:', error);
+      }
+    }
+
+    // Envoyer un message de groupe
+    function sendGroupMessage() {
+      const msgInput = document.getElementById('msg');
+      const text = msgInput ? msgInput.value.trim() : '';
+
+      if (!text) {
+        alert('Veuillez saisir un message');
+        return;
+      }
+
+      // Vérifications préalables
+      if (!senderUserId) {
+        alert('Erreur: Utilisateur non connecté');
+        return;
+      }
+
+      if (!currentGroupId) {
+        alert('Erreur: Groupe non défini');
+        return;
+      }
+
+      const messageData = {
+        senderId: senderUserId,
+        groupId: currentGroupId,
+        content: text
+        // Ne pas inclure receiverId pour les messages de groupe
+      };
+      
+      // Vérification finale avant envoi
+      if (!messageData.groupId || messageData.groupId === 'null' || messageData.groupId === 'undefined') {
+        console.error('❌ ERREUR: groupId invalide détecté!');
+        alert('Erreur: ID de groupe invalide');
+        return;
+      }
+      
+      socket.emit('chat-message', messageData);
+      msgInput.value = '';
+    }
+
+    // Afficher un message de groupe
+    function displayGroupMessage(messageData) {
+      const messagesContainer = document.getElementById('messages');
+      const noMessagesDiv = document.getElementById('noMessages');
+      
+      if (noMessagesDiv) {
+        noMessagesDiv.style.display = 'none';
+      }
+
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'group-message';
+
+      let isOwn = false;
+      let senderName = 'Utilisateur';
+
+      if (messageData.senderId) {
+        if (typeof messageData.senderId === 'object') {
+          isOwn = messageData.senderId._id === senderUserId;
+          senderName = messageData.senderId.username;
+        } else {
+          isOwn = messageData.senderId === senderUserId;
+        }
+      }
+
+      messageDiv.classList.add(isOwn ? 'own' : 'other');
+
+      const content = messageData.content || '';
+      const time = new Date(messageData.createdAt || messageData.timestamp || Date.now()).toLocaleTimeString();
+
+      messageDiv.innerHTML = `
+        ${!isOwn ? `<div class="message-sender">${senderName}</div>` : ''}
+        <div class="message-content">
+          ${content}
+        </div>
+        <div class="message-time">${time}</div>
+      `;
+
+      messagesContainer.appendChild(messageDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // Afficher les informations du groupe
+    function showGroupInfo() {
+      const membersList = document.getElementById('membersList');
+      membersList.innerHTML = '';
+
+      groupMembers.forEach(member => {
+        const li = document.createElement('li');
+        li.textContent = member.username;
+        if (member._id === senderUserId) {
+          li.textContent += ' (Vous)';
+          li.style.fontWeight = 'bold';
+        }
+        membersList.appendChild(li);
+      });
+
+      document.getElementById('groupInfoTitle').textContent = `Groupe: ${groupCurrentGroupName}`;
+      document.getElementById('groupInfo').style.display = 'flex';
+    }
+
+    // Cacher les informations du groupe
+    function hideGroupInfo() {
+      document.getElementById('groupInfo').style.display = 'none';
+    }
+
+    // Fermer la modal en cliquant à l'extérieur
+    document.getElementById('groupInfo').onclick = (e) => {
+      if (e.target.id === 'groupInfo') {
+        hideGroupInfo();
+      }
+    };
+
+    // Écouter les événements de groupe du socket
+    socket.on('user-joined', (data) => {
+      // Un utilisateur a rejoint le groupe
+    });
+
+    socket.on('user-left', (data) => {
+      // Un utilisateur a quitté le groupe
+    });
+
+    // Écouter les nouveaux messages de groupe
+    socket.on('group-message', (messageData) => {
+      displayGroupMessage(messageData);
+    });
+
+    // Confirmer avant de quitter le groupe
+    async function confirmLeaveGroup() {
+      const confirmation = confirm(
+        `Êtes-vous sûr de vouloir quitter le groupe "${groupCurrentGroupName}" ?\n\n` +
+        'Vous ne recevrez plus les messages et devrez être réinvité pour rejoindre.'
+      );
+      
+      if (confirmation) {
+        const result = await leaveGroup(currentGroupId, groupCurrentGroupName);
+        if (result.success) {
+          // Quitter la room socket
+          socket.emit('leave-group', { groupId: currentGroupId });
+          
+          // Afficher message de succès
+          alert('Vous avez quitté le groupe avec succès !');
+          
+          // Rediriger vers la page des groupes
+          window.location.href = 'groups.html';
+        } else {
+          alert(result.message || 'Erreur lors de la sortie du groupe');
+        }
+      }
+    }
+
+    // Se déconnecter au moment de quitter la page
+    window.addEventListener('beforeunload', () => {
+      leaveGroup();
+    });
+  </script>
+</body>
+</html>
