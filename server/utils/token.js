@@ -1,12 +1,15 @@
 const jwt = require('jsonwebtoken');
 
 const generateToken = (userId, username) => {
-    return jwt.sign({ id: userId, username: username }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '1h' });
+    const secret = process.env.JWT_SECRET || 'your-secret-key-here-change-in-production';
+    const expiresIn = process.env.JWT_EXPIRES_IN || '1h';
+    return jwt.sign({ id: userId, username: username }, secret, { expiresIn });
 };
 
 const verifyToken = (token) => {
     try {
-        return jwt.verify(token, process.env.JWT_SECRET);
+        const secret = process.env.JWT_SECRET || 'your-secret-key-here-change-in-production';
+        return jwt.verify(token, secret);
     } catch (err) {
         return null;
     }

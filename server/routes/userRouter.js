@@ -4,12 +4,12 @@ const authMiddleware = require('../middleware/authMiddleware');
 const { register, login, logout, getAllUsers } = require('../controller/userController');
 
 // Routes publiques (pas besoin d'authentification)
-router.post('/api/users/register', register);
-router.post('/api/users/login', login);
+router.post('/register', register);
+router.post('/login', login);
 
 // Routes protégées
-router.post('/api/users/logout', authMiddleware, logout);
-router.get('/api/users', authMiddleware, getAllUsers);
+router.post('/logout', authMiddleware, logout);
+router.get('/', getAllUsers);
 
 
 module.exports = router;

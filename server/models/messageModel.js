@@ -7,6 +7,8 @@ const messageSchema = new Schema({
   receiverId: {type: Schema.Types.ObjectId, ref: 'User', required: true },
   content: { type: String, required: true },
   timestamp: { type: Date, default: Date.now }
+}, {
+  timestamps: true // Ajoute automatiquement createdAt et updatedAt
 });
 
 const Message = mongoose.model('Message', messageSchema);

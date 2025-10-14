@@ -3,14 +3,10 @@ const app = express();
 const http = require('http');
 const server = http.createServer(app);
 const { Server } = require('socket.io');
-const socketServer = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
-});
+const socketServer = new Server(server);
 const db = require('./config/db');
 const cors = require("cors");
+const { ObjectId } = require('mongodb');
 const mongoose = require('mongoose');
 
 // Import des routes et modèles
@@ -26,6 +22,32 @@ app.use(express.static("../public"));
 // Routes
 app.use('/api/messages', messageRouter);
 app.use('/api/users', userRouter);
+
+
+// server side et client side
+/**
+ * Dans le server side on fait la connexon du server socket avec le Server.on("Event",callback function(socket){}))
+ * socket.connected: verifie si le server est connecté
+ * socket.id: id du socket
+ * socket.on("Event",callback function(data){}): ecoute un evenement
+ * Dans le client side on fait la connexion du client socket avec le io("url",option) et socket.on("Event",callback function(data){}): ecoute un evenement
+ *
+ * le best pratics socket.on("connect", () => {
+  // ...
+});
+
+socket.on("data", () => {  });
+
+Tree of events:
+- broadcast a tous les utilisateurs connectes sauf l'envoyeur
+- envoi d'un message a un utilisateur specifique
+- envoi un message a tous les utilisateurs connectes dans une salle
+- envoi un message a tous les utilisateurs connectes dans une salle sauf l'envoyeur
+- envoi un message a tous les utilisateurs connectes dans une salle sauf l'envoyeur et un utilisateur specifique
+ * 
+ * Dans le client side on fait la connexion du client socket avec le io("url",option) et socket.on("Event",callback function(data){}): ecoute un evenement
+ */
+
 
 // Socket.IO
 socketServer.on('connection', (socket) => {
@@ -49,19 +71,27 @@ socketServer.on('connection', (socket) => {
         try {
             // Création du message
             const newMessage = new Message({
+                //faire un object model id
                 senderId: messageData.senderId,
                 receiverId: messageData.receiverId,
                 content: messageData.content
             });
-
+            console.log(typeof newMessage.senderId);
+            console.log("new message", newMessage);
             const savedMessage = await newMessage.save();
+            console.log("saved message", savedMessage);
             const populatedMessage = await savedMessage.populate('senderId');
 
             console.log(`Message sauvegardé de ${messageData.senderId} à ${messageData.receiverId}`);
+            console.log('Message populé:', populatedMessage);
 
-            // Envoi du message aux deux utilisateurs connectés
+            // Envoi du message au destinataire (s'il est connecté)
             socketServer.to(messageData.receiverId).emit("message", populatedMessage);
-            socketServer.to(messageData.senderId).emit("message", populatedMessage);
+            
+            // Envoi du message à l'expéditeur (confirmation)
+            socket.emit("message", populatedMessage);
+            
+            console.log('Messages envoyés via Socket.IO');
 
         } catch (error) {
             console.error("Erreur lors de l'enregistrement du message :", error);

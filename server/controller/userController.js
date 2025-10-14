@@ -1,7 +1,6 @@
 const User = require('../models/userModel');
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const { generateToken,verifyToken } = require('../utils/token');
+const { generateToken } = require('../utils/token');
 
 // Register a new user
 exports.register = async (req, res) => {
@@ -34,8 +33,13 @@ exports.login = async (req, res) => {
         }
         
         const token = generateToken(user._id, user.username);
-        res.status(200).json({ message: 'Login successful', userId: user._id, token });
+        res.status(200).json({ 
+            message: 'Login successful', 
+            user: { _id: user._id, username: user.username },
+            token 
+        });
     } catch (err) {
+        console.error('Login error:', err);
         res.status(500).json({ message: 'Server error' });
     }
 };
@@ -58,8 +62,8 @@ exports.logout = async (req, res) => {
 // Get all users (except current user)
 exports.getAllUsers = async (req, res) => {
     try {
-        const currentUserId = req.user.id; // from auth middleware
-        const users = await User.find({ _id: { $ne: currentUserId } }).select('username _id');
+        
+        const users = await User.find();
         res.status(200).json({ users });
     } catch (err) {
         res.status(500).json({ message: 'Server error' });

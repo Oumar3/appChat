@@ -1,37 +1,304 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-  <title>Chat</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat - Conversation</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* Style spécifique pour la conversation */
+    .chat-container {
+      max-width: 800px;
+      margin: 0 auto;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #f5f5f5;
+    }
+
+    .chat-header {
+      background: #2c3e50;
+      color: white;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .chat-header h2 {
+      margin: 0;
+      font-size: 1.2em;
+    }
+
+    .header-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 8px 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+
+    .btn-back {
+      background: #95a5a6;
+      color: white;
+    }
+
+    .btn-back:hover {
+      background: #7f8c8d;
+    }
+
+    .btn-logout {
+      background: #e74c3c;
+      color: white;
+    }
+
+    .btn-logout:hover {
+      background: #c0392b;
+    }
+
+    .messages-container {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      background: white;
+      margin: 10px;
+      border-radius: 10px;
+      box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .message {
+      margin-bottom: 15px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .message.sent {
+      text-align: right;
+    }
+
+    .message.received {
+      text-align: left;
+    }
+
+    .message-content {
+      display: inline-block;
+      max-width: 70%;
+      padding: 12px 16px;
+      border-radius: 18px;
+      word-wrap: break-word;
+    }
+
+    .message.sent .message-content {
+      background: #007bff;
+      color: white;
+      border-bottom-right-radius: 5px;
+    }
+
+    .message.received .message-content {
+      background: #e9ecef;
+      color: #333;
+      border-bottom-left-radius: 5px;
+    }
+
+    .message-time {
+      font-size: 0.75em;
+      color: #666;
+      margin-top: 5px;
+    }
+
+    .message-input-container {
+      padding: 15px 20px;
+      background: #ecf0f1;
+      border-top: 1px solid #bdc3c7;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .message-input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 1px solid #bdc3c7;
+      border-radius: 25px;
+      outline: none;
+      font-size: 16px;
+      background: white;
+    }
+
+    .message-input:focus {
+      border-color: #007bff;
+      box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+    }
+
+    .send-btn {
+      padding: 12px 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+
+    .send-btn:hover {
+      background: #0056b3;
+      transform: translateY(-1px);
+    }
+
+    .send-btn:active {
+      transform: translateY(0);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Style pour les messages vides */
+    .no-messages {
+      text-align: center;
+      color: #666;
+      font-style: italic;
+      margin-top: 50px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .chat-container {
+        height: 100vh;
+      }
+      
+      .chat-header {
+        padding: 10px 15px;
+      }
+      
+      .messages-container {
+        margin: 5px;
+        padding: 15px;
+      }
+      
+      .message-content {
+        max-width: 85%;
+      }
+    }
+  </style>
 </head>
 <body>
-  <div id="body">
-    <div class="container" style="max-width: 600px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <button id="backBtn" style="background-color: #6c757d;">← Retour</button>
-        <h2 id="chatWith">Chargement...</h2>
-        <button id="logoutBtn" style="background-color: #dc3545;">Déconnexion</button>
+  <div class="chat-container">
+    <!-- En-tête du chat -->
+    <div class="chat-header">
+      <div class="header-buttons">
+        <button id="backBtn" class="btn btn-back">← Retour</button>
       </div>
+      <h2 id="chatWith">💬 Chargement...</h2>
+      <div class="header-buttons">
+        <button id="logoutBtn" class="btn btn-logout">Déconnexion</button>
+      </div>
+    </div>
 
-      <div id="messages"></div>
-      <div style="display: flex; gap: 10px; margin-top: 10px;">
-        <input id="msg" type="text" placeholder="Tapez votre message..." style="flex: 1;" />
-        <button id="send" style="width: auto; padding: 10px 20px;">Envoyer</button>
+    <!-- Zone des messages -->
+    <div class="messages-container" id="messages">
+      <div class="no-messages" id="noMessages">
+        Aucun message pour le moment. Commencez la conversation ! 👋
       </div>
+    </div>
+
+    <!-- Zone de saisie -->
+    <div class="message-input-container">
+      <input 
+        id="msg" 
+        type="text" 
+        class="message-input"
+        placeholder="Tapez votre message..." 
+        maxlength="500"
+        autocomplete="off"
+      />
+      <button id="send" class="send-btn">
+        📤 Envoyer
+      </button>
     </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="chat.js"></script>
+  
   <script>
-    // Gestion du bouton de retour
+    // Amélioration de l'interface de conversation
+    document.addEventListener('DOMContentLoaded', () => {
+      const messagesContainer = document.getElementById('messages');
+      const noMessagesDiv = document.getElementById('noMessages');
+      
+      // Observer pour cacher/montrer le message "Aucun message"
+      const observer = new MutationObserver(() => {
+        const hasMessages = messagesContainer.children.length > 1; // > 1 car noMessages compte
+        noMessagesDiv.style.display = hasMessages ? 'none' : 'block';
+      });
+      
+      observer.observe(messagesContainer, { childList: true });
+      
+      // Animation de frappe
+      const messageInput = document.getElementById('msg');
+      let typingTimer;
+      
+      messageInput.addEventListener('input', () => {
+        // Ici on peut ajouter une indication "en train d'écrire"
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+          // L'utilisateur a arrêté de taper
+        }, 1000);
+      });
+      
+      // Effet visuel sur l'envoi
+      const sendBtn = document.getElementById('send');
+      const originalSendText = sendBtn.textContent;
+      
+      sendBtn.addEventListener('click', () => {
+        if (messageInput.value.trim()) {
+          sendBtn.textContent = '📤 Envoi...';
+          sendBtn.disabled = true;
+          
+          setTimeout(() => {
+            sendBtn.textContent = originalSendText;
+            sendBtn.disabled = false;
+          }, 1000);
+        }
+      });
+      
+      // Scroll automatique vers le bas
+      function scrollToBottom() {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+      
+      // Appel du scroll chaque fois qu'un message est ajouté
+      const originalDisplayMessage = window.displayMessage;
+      if (originalDisplayMessage) {
+        window.displayMessage = function(...args) {
+          originalDisplayMessage.apply(this, args);
+          setTimeout(scrollToBottom, 100);
+        };
+      }
+    });
+
+    // Gestion des boutons (maintenu pour compatibilité avec chat.js)
     document.getElementById('backBtn').onclick = () => {
       window.location.href = 'userselection.html';
     };
 
-    // Gestion du bouton de déconnexion
     document.getElementById('logoutBtn').onclick = () => {
-      logout();
+      if (typeof logout === 'function') {
+        logout();
+      } else {
+        localStorage.clear();
+        window.location.href = 'userloggin.html';
+      }
     };
   </script>
 </body>
