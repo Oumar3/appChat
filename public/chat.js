@@ -50,16 +50,6 @@ socket.on('message-error', (error) => {
   alert('Erreur: ' + error.error);
 });
 
-// Fonction de test pour afficher un message (pour debug)
-window.testDisplayMessage = function() {
-  const testMessage = {
-    senderId: { _id: senderUserId, username: senderUsername },
-    content: 'Message de test',
-    createdAt: new Date()
-  };
-  console.log('Test d\'affichage message:', testMessage);
-  displayMessage(testMessage);
-};
 
 // =============== BOUTONS LOGIN/REGISTER (userloggin.html) ===============
 let login = document.getElementById("login");
@@ -153,29 +143,16 @@ function displayMessage(messageData) {
   }
   
   const messageDiv = document.createElement('div');
-  messageDiv.className = 'message';
-  
-  // Debug des IDs
-  console.log('SenderId du message:', messageData.senderId);
-  console.log('Current userId:', senderUserId);
-  
+  messageDiv.className = 'message';  
   // Déterminer si c'est notre message ou celui du correspondant
   let isMyMessage = false;
   let senderName = 'Inconnu';
   
   if (messageData.senderId) {
-    if (typeof messageData.senderId === 'object' && messageData.senderId._id) {
-      // Format avec populate
-      isMyMessage = messageData.senderId._id === senderUserId;
-      senderName = messageData.senderId.username || 'Utilisateur';
-    } else if (typeof messageData.senderId === 'string') {
-      // Format simple ID
-      isMyMessage = messageData.senderId === senderUserId;
-      senderName = isMyMessage ? senderUsername || 'Moi' : 'Autre utilisateur';
-    }
+    isMyMessage = messageData.senderId._id === senderUserId;
+    senderName = messageData.senderId.username || 'Utilisateur';
   }
   
-  messageDiv.classList.add(isMyMessage ? 'sent' : 'received');
   
   const content = messageData.content || '';
   const time = new Date(messageData.createdAt || messageData.timestamp || Date.now()).toLocaleTimeString();
@@ -203,13 +180,7 @@ if (send) {
     if (!text) {
       alert('Veuillez saisir un message');
       return;
-    }
-    
-    if (!senderUserId || !receiverId) {
-      alert('Informations utilisateur manquantes');
-      return;
-    }
-    
+    }    
     // Créer l'objet message selon le format du serveur
     const messageData = {
       senderId: senderUserId,
@@ -241,13 +212,6 @@ if (msgInput) {
 
 // Charger les messages existants
 async function loadExistingMessages() {
-  if (!senderUserId || !receiverId) {
-    console.warn('Impossible de charger les messages: senderUserId ou receiverId manquant');
-    return;
-  }
-  
-  console.log(`Chargement des messages entre ${senderUserId} et ${receiverId}`);
-  
   try {
     const token = localStorage.getItem('token');
     const url = `/api/messages/${senderUserId}/${receiverId}`;
@@ -263,8 +227,6 @@ async function loadExistingMessages() {
     }
     
     const response = await fetch(url, { headers });
-    
-    console.log('Réponse status:', response.status);
     
     if (response.ok) {
       const data = await response.json();
